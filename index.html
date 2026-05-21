@@ -1444,6 +1444,7 @@
   window.onload = () => { 
         document.getElementById("file-input").addEventListener("change", (e) => { 
             if(e.target.files.length) handleFile(e.target.files[0]); 
+            document.getElementById("build-version").innerText = new Date().toLocaleString('ar-EG');
         }); 
 
         // كود تشغيل زر تنزيل الإكسل للبيانات المفلترة بالكامل
@@ -1524,6 +1525,12 @@
         };
     };
     window.goToPage = goToPage;
+    
 </script>
+<div style="text-align: center; margin-top: 40px; padding: 20px; color: var(--text-muted); font-size: 0.75rem;">
+    <span>System v.2.6.0 | Last Update: <span id="build-version"></span></span>
+    
+</div>
+    
 </body>
 </html>
