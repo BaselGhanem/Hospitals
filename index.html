@@ -1209,8 +1209,7 @@
         
        let thead = document.getElementById("table-header");
         // 🟢 تم إزالة حقل الشهر من الترويسة
-        thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>23 ك</th><th>23 ب</th><th>24 ك</th><th>24 ب</th><th>25 ك</th><th>25 ب</th><th>26 ك</th><th>26 ب</th><th>إجمالي الكمية</th><th>إجمالي البونص</th><th style="color:var(--primary);">النسبة %</th></tr>';
-        
+thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>كمية 23</th><th>بونص 23</th><th>كمية 24</th><th>بونص 24</th><th>كمية 25</th><th>بونص 25</th><th>كمية 26</th><th>بونص 26</th><th>إجمالي الكمية</th><th>إجمالي البونص</th><th style="color:var(--primary);">النسبة %</th></tr>';        
         let tbody = document.getElementById("table-body");
         tbody.innerHTML = '';
         for(let r of pageData) {
@@ -1444,7 +1443,6 @@
   window.onload = () => { 
         document.getElementById("file-input").addEventListener("change", (e) => { 
             if(e.target.files.length) handleFile(e.target.files[0]); 
-            document.getElementById("build-version").innerText = new Date().toLocaleString('ar-EG');
         }); 
 
         // كود تشغيل زر تنزيل الإكسل للبيانات المفلترة بالكامل
@@ -1525,12 +1523,6 @@
         };
     };
     window.goToPage = goToPage;
-    
 </script>
-<div style="text-align: center; margin-top: 40px; padding: 20px; color: var(--text-muted); font-size: 0.75rem;">
-    <span>System v.2.6.0 | Last Update: <span id="build-version"></span></span>
-    
-</div>
-    
 </body>
 </html>
