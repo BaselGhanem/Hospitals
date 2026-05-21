@@ -560,7 +560,7 @@
     <div class="header">
         <h1>
             <span class="header-icon">✦</span>
-            التقرير الطبي المتقدم 
+            تقرير مسحوبات المستشفيات 
             <span id="filter-count-badge" class="badge" style="display:none;">0</span>
         </h1>
         <div class="top-bar">
@@ -657,12 +657,15 @@
             <canvas id="ratioChart"></canvas>
         </div>
     </div>
-
-    <div class="table-wrap">
-        <div class="table-header-info">
-            <span>📋 السجلات المعروضة: <span id="row-counter" style="color:var(--primary);">0</span> من أصل <span id="total-rows">0</span></span>
-            <span style="background: rgba(245,158,11,0.1); color: var(--accent); padding: 4px 12px; border-radius: 20px;">💡 قاعدة: نسبة البونص = (إجمالي البونص / إجمالي الكميات) × 100</span>
+<div class="table-wrap">
+    <div class="table-header-info">
+        <span>📋 السجلات المعروضة: <span id="row-counter" style="color:var(--primary);">0</span> من أصل <span id="total-rows">0</span></span>
+        <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+            <span style="background: rgba(245,158,11,0.1); color: var(--accent); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem;">💡 قاعدة: نسبة البونص = (إجمالي البونص / إجمالي الكميات) × 100</span>
+            <button id="export-excel-btn" class="btn btn-primary" style="padding: 8px 18px; font-size: 0.85rem; background: linear-gradient(135deg, #16a34a, #22c55e); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); border: none;">🟢 تنزيل Excel</button>
         </div>
+    </div>
+    
         <div class="table-responsive">
             <table id="result-table">
                 <thead id="table-header"></thead>
@@ -771,11 +774,14 @@
         const optionsDiv = document.createElement('div'); optionsDiv.id = `${containerId}-options`;
         container.appendChild(optionsDiv);
         
-        function render(filterText='') {
+     function render(filterText='') {
             const filtered = items.filter(i => i.toString().toLowerCase().includes(filterText.toLowerCase()));
             optionsDiv.innerHTML = '';
             filtered.forEach(val => {
-                const label = document.createElement('label'); label.className = 'filter-option';
+                const label = document.createElement('label'); 
+                label.className = 'filter-option';
+                label.setAttribute('data-value', val); // أضفنا هذا السطر للربط الذكي
+                
                 const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = val; cb.checked = selectedVals.includes(val);
                 cb.addEventListener('change', (e) => { e.stopPropagation(); toggleSelection(type, val, cb.checked); refreshAfterFilter(); });
                 const span = document.createElement('span'); span.innerText = val;
@@ -785,7 +791,10 @@
                 else if(type === 'desc') count = rawData.filter(d => d.description === val).length;
                 else count = rawData.filter(d => d[`goods${val}`]!==0 || d[`bonus${val}`]!==0).length;
                 
-                const countSpan = document.createElement('span'); countSpan.className = 'count'; countSpan.innerText = count;
+                const countSpan = document.createElement('span'); 
+                countSpan.className = 'count'; 
+                countSpan.innerText = ` (${count})`; // تعديل تنسيق القوسين هنا
+                
                 label.appendChild(cb); label.appendChild(span); label.appendChild(countSpan);
                 optionsDiv.appendChild(label);
             });
@@ -818,7 +827,81 @@
     }
 
     function refreshAfterFilter() { if(debounceTimer) clearTimeout(debounceTimer); debounceTimer = setTimeout(() => applyGlobalFiltersAndRender(), 200); }
+// دالة لحساب البيانات المفلترة مع استثناء الفلتر الحالي لمنع قفل الخيارات
+    function getFilteredRowsExcept(excludeType) {
+        let searchText = document.getElementById("global-search").value.trim().toLowerCase();
+        let monthFrom = parseInt(document.getElementById("month-from").value) || null;
+        let monthTo = parseInt(document.getElementById("month-to").value) || null;
+        
+        return rawData.filter(item => {
+            if (excludeType !== 'cust' && activeFilters.customers.length && !activeFilters.customers.includes(item.custName)) return false;
+            if (excludeType !== 'desc' && activeFilters.descriptions.length && !activeFilters.descriptions.includes(item.description)) return false;
+            if (excludeType !== 'year' && activeFilters.years.length) {
+                let hasYear = activeFilters.years.some(y => item[`goods${y}`] !== 0 || item[`bonus${y}`] !== 0);
+                if(!hasYear) return false;
+            }
+            if(monthFrom && monthTo && monthFrom <= monthTo) {
+                let m = parseInt(item.month);
+                if(isNaN(m) || m < monthFrom || m > monthTo) return false;
+            }
+            if(searchText) {
+                let inCust = item.custName.toLowerCase().includes(searchText);
+                let inDesc = item.description.toLowerCase().includes(searchText);
+                let inMonth = item.month.toString().includes(searchText);
+                let inYears = [2023,2024,2025,2026].some(y => item[`goods${y}`].toString().includes(searchText) || item[`bonus${y}`].toString().includes(searchText));
+                if(!(inCust || inDesc || inMonth || inYears)) return false;
+            }
+            return true;
+        });
+    }
 
+    // الدالة المسؤولة عن تحديث خيارات الفلاتر وإخفاء الـتأثيرات الصفرية
+    function updateDropdownsCascading() {
+        // 1. تحديث قائمة الزبائن بناءً على الأصناف والسنوات المختارة
+        const custRows = getFilteredRowsExcept('cust');
+        document.querySelectorAll('#cust-content-options .filter-option').forEach(label => {
+            const val = label.getAttribute('data-value');
+            const cb = label.querySelector('input');
+            const count = custRows.filter(d => d.custName === val).length;
+            label.querySelector('.count').innerText = ` (${count})`;
+            
+            if (count === 0 && !cb.checked) {
+                label.style.display = 'none';
+            } else {
+                label.style.display = 'flex';
+            }
+        });
+
+        // 2. تحديث قائمة الأصناف بناءً على الزبائن والسنوات المختارة
+        const descRows = getFilteredRowsExcept('desc');
+        document.querySelectorAll('#desc-content-options .filter-option').forEach(label => {
+            const val = label.getAttribute('data-value');
+            const cb = label.querySelector('input');
+            const count = descRows.filter(d => d.description === val).length;
+            label.querySelector('.count').innerText = ` (${count})`;
+            
+            if (count === 0 && !cb.checked) {
+                label.style.display = 'none';
+            } else {
+                label.style.display = 'flex';
+            }
+        });
+
+        // 3. تحديث قائمة السنوات بناءً على الزبائن والأصناف المختارة
+        const yearRows = getFilteredRowsExcept('year');
+        document.querySelectorAll('#years-content-options .filter-option').forEach(label => {
+            const val = label.getAttribute('data-value');
+            const cb = label.querySelector('input');
+            const count = yearRows.filter(d => d[`goods${val}`] !== 0 || d[`bonus${val}`] !== 0).length;
+            label.querySelector('.count').innerText = ` (${count})`;
+            
+            if (count === 0 && !cb.checked) {
+                label.style.display = 'none';
+            } else {
+                label.style.display = 'flex';
+            }
+        });
+    }
     function applyGlobalFiltersAndRender() {
         if(!rawData.length) return;
         
@@ -849,16 +932,18 @@
             filtered = filtered.filter(r => topProducts.includes(r.description));
         }
 
-        filteredData = filtered;
+     filteredData = filtered;
         currentPage = 1; // Reset page on filter
         updateKPIAndCharts();
         updateTable();
         updateChipsUI();
         
+        // استدعاء الفلاتر المترابطة لتحديث القوائم ديناميكياً فوراً
+        updateDropdownsCascading(); 
+        
         // Update Chart Labels Color Based on Theme dynamically
         Chart.defaults.set('plugins.datalabels', { color: document.body.classList.contains('dark') ? '#f8fafc' : '#1e293b' });
     }
-
     function updateKPIAndCharts() {
         let sumGoods = filteredData.reduce((s,r)=>s+r.totalGoods,0);
         let sumBonus = filteredData.reduce((s,r)=>s+r.totalBonus,0);
@@ -1073,7 +1158,7 @@
     function showLoading(show) { 
         if(show && !document.querySelector('.loading-overlay')) { 
             let div = document.createElement('div'); div.className='loading-overlay'; 
-            div.innerHTML='<div class="loader-spinner"></div><h2>جاري معالجة البيانات بذكاء...</h2><p style="opacity:0.8; margin-top:10px;">يرجى الانتظار</p>'; 
+            div.innerHTML='<div class="loader-spinner"></div><h2>جاري معالجة البيانات ...</h2><p style="opacity:0.8; margin-top:10px;">يرجى الانتظار</p>'; 
             document.body.appendChild(div); 
         } else if(!show) { 
             let ov = document.querySelector('.loading-overlay'); if(ov) ov.remove(); 
@@ -1124,10 +1209,50 @@
         localStorage.setItem('darkMode', darkMode); 
     };
 
-    window.onload = () => { 
+  window.onload = () => { 
         document.getElementById("file-input").addEventListener("change", (e) => { 
             if(e.target.files.length) handleFile(e.target.files[0]); 
         }); 
+
+        // كود تشغيل زر تنزيل الإكسل للبيانات المفلترة بالكامل
+        document.getElementById("export-excel-btn").onclick = function() {
+            if(!filteredData.length) { alert("لا توجد بيانات لتصديرها! يرجى رفع ملف أولاً."); return; }
+            showLoading(true);
+            
+            setTimeout(() => {
+                // إعادة هيكلة البيانات المصفاة لتظهر بأعمدة عربية منسقة عند التصدير
+                const excelRows = filteredData.map(r => ({
+                    "العميل": r.custName,
+                    "الصنف": r.description,
+                    "الشهر": r.month,
+                    "كمية 2023": r.goods2023,
+                    "بونص 2023": r.bonus2023,
+                    "كمية 2024": r.goods2024,
+                    "بونص 2024": r.bonus2024,
+                    "كمية 2025": r.goods2025,
+                    "بونص 2025": r.bonus2025,
+                    "كمية 2026": r.goods2026,
+                    "بونص 2026": r.bonus2026,
+                    "إجمالي الكمية": r.totalGoods,
+                    "إجمالي البونص": r.totalBonus,
+                    "نسبة البونص %": r.totalGoods > 0 ? ((r.totalBonus / r.totalGoods) * 100).toFixed(2) + '%' : '0%'
+                }));
+                
+                const worksheet = XLSX.utils.json_to_sheet(excelRows);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "التقرير المصفى");
+                
+                // جعل اتجاه شيت الإكسل من اليمين إلى اليسار تلقائياً ليكون احترافياً
+                worksheet['!dir'] = "rtl";
+                
+                // توليد الملف وتنزيله فورا للمستخدم
+                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                saveAs(blob, `تقرير_الأداء_المصفى_${new Date().toISOString().slice(0,10)}.xlsx`);
+                
+                showLoading(false);
+            }, 200);
+        };
     };
     window.goToPage = goToPage;
 </script>
