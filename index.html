@@ -551,7 +551,22 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+        @keyframes pulse { 0% { transform: translateY(0); } 50% { transform: translateY(-2px); } 100% { transform: translateY(0); } }
+/* إخفاء صندوق مخطط النسبة الصغير القديم لتوفر مساحة */
+.chart-box:has(#ratioChart) { display: none; }
 
+        /* --- Decline Analysis Styles --- */
+        .decline-wrap { border-top: 4px solid #ef4444; position: relative; }
+        .decline-wrap::before { content:''; position:absolute; top:0; left:0; right:0; height:40px; background: linear-gradient(to bottom, rgba(239, 68, 68, 0.05), transparent); pointer-events: none; }
+        .decline-summary { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+        .decline-metric { flex: 1 1 220px; min-width: 200px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.18); border-radius: 18px; padding: 18px 20px; box-shadow: inset 0 2px 6px rgba(239, 68, 68, 0.04); }
+        .decline-metric h4 { margin: 0 0 6px; font-size: 0.92rem; color: var(--text-muted); letter-spacing: 0.02em; }
+        .decline-metric p { margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--text-main); }
+        .decline-row td { background-color: rgba(239, 68, 68, 0.015); transition: var(--transition); }
+        .decline-row:hover td { background-color: rgba(239, 68, 68, 0.06) !important; transform: scale(1.002); }
+        .decline-val { color: #ef4444; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; background: rgba(239, 68, 68, 0.1); padding: 4px 10px; border-radius: 20px; }
+        .decline-val::before { content: '▼'; font-size: 0.65rem; }
+        .base-year-highlight { background: rgba(20, 184, 166, 0.08) !important; font-weight: 800; border-left: 2px solid var(--primary); border-right: 2px solid var(--primary); }
     </style>
 </head>
 <body>
@@ -648,13 +663,65 @@
             <h3>🎁 تطور البونص حسب السنة</h3>
             <canvas id="bonusChart"></canvas>
         </div>
-        <div class="chart-box" style="grid-column: 1 / -1; max-width: 100%;">
-            <h3>🏆 تحليل باريتو (Pareto) - أفضل الأصناف</h3>
-            <canvas id="paretoChart" style="max-height: 400px;"></canvas>
-        </div>
+       <div class="chart-box" style="grid-column: 1 / -1; max-width: 100%;">
+    <h3>📈 تحليل نسبة البونص (Bonus % Trends)</h3>
+    <canvas id="paretoChart" style="max-height: 400px;"></canvas>
+</div>
         <div class="chart-box" style="grid-column: 1 / -1;">
             <h3>📈 مسار نسبة البونص (%) السنوي</h3>
             <canvas id="ratioChart"></canvas>
+        </div>
+    </div>
+    <div class="table-wrap decline-wrap" style="margin-bottom: 30px;">
+        <div class="table-header-info" style="margin-bottom: 20px;">
+            <h3 style="display: flex; align-items: center; gap: 10px; color: var(--text-main); font-size: 1.3rem; margin: 0;">
+                <span style="font-size: 1.8rem; animation: pulse 2s infinite;">⚠️</span> 
+                تحليل مخاطر تراجع العملاء (Churn Risk)
+            </h3>
+            <span id="base-year-badge" style="background: var(--bg-body); color: var(--text-muted); padding: 6px 16px; border-radius: 30px; font-weight: 800; font-size: 0.85rem; border: 1px solid var(--border-color); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">سنة الأساس المعتمدة: جاري الحساب...</span>
+        </div>
+        <div class="decline-summary">
+            <div class="decline-metric">
+                <h4>عدد العملاء المتراجعين</h4>
+                <p id="decline-total-count">0</p>
+            </div>
+            <div class="decline-metric">
+                <h4>متوسط نسبة التراجع</h4>
+                <p id="decline-average-drop">0.0%</p>
+            </div>
+            <div class="decline-metric">
+                <h4>أعلى عميل مخاطرة</h4>
+                <p id="decline-top-customer">-</p>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table id="decline-table">
+                <thead>
+                    <tr>
+                        <th>العميل</th>
+                        <th>الصنف</th>
+                        <th>23 ك</th>
+                        <th>24 ك</th>
+                        <th>25 ك</th>
+                        <th>26 ك</th>
+                        <th>أعلى سحب سابق</th>
+                        <th>سحب سنة الأساس</th>
+                        <th style="color: #ef4444;">مقدار التراجع</th>
+                        <th style="color: #ef4444;">نسبة التراجع %</th>
+                    </tr>
+                </thead>
+                <tbody id="decline-table-body">
+                    </tbody>
+            </table>
+        </div>
+        <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 16px;">
+            <div id="decline-export-area" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                <button id="decline-export-btn" class="btn btn-primary" style="padding: 8px 18px; font-size: 0.85rem; background: linear-gradient(135deg, #16a34a, #22c55e); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); border: none; color: white;">📥 تنزيل تحليل التراجع</button>
+            </div>
+            <div id="decline-summary-notice" style="font-size: 0.95rem; color: var(--text-muted);">يمكن تنزيل جدول تحليل التراجع مباشرة.</div>
+        </div>
+        <div id="no-decline-msg" style="display: none; text-align: center; padding: 30px; color: var(--primary); font-weight: 800; font-size: 1.1rem; background: rgba(20,184,166,0.05); border-radius: 12px; margin-top: 15px;">
+            🎉 أداء ممتاز! لا يوجد أي عملاء متراجعين حسب الفلاتر الحالية.
         </div>
     </div>
 <div class="table-wrap">
@@ -928,14 +995,41 @@
         if(topN > 0) {
             let prodSums = new Map();
             filtered.forEach(r => { let name = r.description; prodSums.set(name, (prodSums.get(name)||0) + r.totalGoods); });
-            let topProducts = [...prodSums.entries()].sort((a,b)=>b[1]-a[1]).slice(0, topN).map(p => p[0]);
-            filtered = filtered.filter(r => topProducts.includes(r.description));
+            let topProducts = [...prodSums.entries()].sort((a,b)=>b[1]-a[1]).slice(0, topN);
+            const topNames = new Set(topProducts.map(t => t[0]));
+            filtered = filtered.filter(r => topNames.has(r.description));
         }
 
-     filteredData = filtered;
-        currentPage = 1; // Reset page on filter
+        // 🟢 بداية كود التجميع الذكي لدمج الأشهر المفلترة في سطر واحد لكل عميل وصنف
+        let aggMap = new Map();
+        filtered.forEach(item => {
+            // عمل مفتاح فريد يدمج اسم العميل مع الصنف
+            let key = `${item.custName}|||${item.description}`;
+            if(!aggMap.has(key)) {
+                aggMap.set(key, {
+                    custName: item.custName, description: item.description,
+                    goods2023: 0, bonus2023: 0, goods2024: 0, bonus2024: 0,
+                    goods2025: 0, bonus2025: 0, goods2026: 0, bonus2026: 0,
+                    totalGoods: 0, totalBonus: 0
+                });
+            }
+            // جمع القيم بشكل تراكمي للأشهر المحددة
+            let row = aggMap.get(key);
+            row.goods2023 += item.goods2023; row.bonus2023 += item.bonus2023;
+            row.goods2024 += item.goods2024; row.bonus2024 += item.bonus2024;
+            row.goods2025 += item.goods2025; row.bonus2025 += item.bonus2025;
+            row.goods2026 += item.goods2026; row.bonus2026 += item.bonus2026;
+            row.totalGoods += item.totalGoods; row.totalBonus += item.totalBonus;
+        });
+        filtered = Array.from(aggMap.values()); // تحويل الخريطة المجمعة إلى مصفوفة جاهزة للعرض
+        // 🟢 نهاية كود التجميع
+
+        filteredData = filtered;
+        currentPage = 1; 
+        // Reset page on filter
         updateKPIAndCharts();
         updateTable();
+        updateDeclineAnalysis();
         updateChipsUI();
         
         // استدعاء الفلاتر المترابطة لتحديث القوائم ديناميكياً فوراً
@@ -999,23 +1093,31 @@
         }
 
         // إعدادات المحاور العصرية
-        const scalesConfig = {
+       const scalesConfig = {
             x: { grid: { display: false }, ticks: { font: { family: 'Almarai', weight: 'bold' } } },
             y: { grid: { color: 'rgba(148, 163, 184, 0.1)', borderDash: [5, 5] }, beginAtZero: true, border: { display: false } }
         };
 
-        if(charts.goods) charts.goods.destroy();
+    if(charts.goods) charts.goods.destroy();
         charts.goods = new Chart(document.getElementById("goodsChart"), { 
             type:'bar', 
-            data:{ labels:selectedYears, datasets:[{ label:'إجمالي الكميات', data:goodsArr, backgroundColor:'#0f766e', borderRadius: 8, borderSkipped: false, barPercentage: 0.6 }] }, 
-            options:{ responsive:true, maintainAspectRatio:false, scales: scalesConfig } 
+            data:{ labels:selectedYears, datasets:[{ label:'الكميات', data:goodsArr, backgroundColor:'#0f766e', borderRadius: 8 }] }, 
+            options:{ 
+                responsive:true, maintainAspectRatio:false, 
+                plugins: { legend: { display: false } }, // تم حذف الـ Legend
+                scales: scalesConfig 
+            } 
         });
 
-        if(charts.bonus) charts.bonus.destroy();
+      if(charts.bonus) charts.bonus.destroy();
         charts.bonus = new Chart(document.getElementById("bonusChart"), { 
             type:'bar', 
-            data:{ labels:selectedYears, datasets:[{ label:'إجمالي البونص', data:bonusArr, backgroundColor:'#f59e0b', borderRadius: 8, borderSkipped: false, barPercentage: 0.6 }] }, 
-            options:{ responsive:true, maintainAspectRatio:false, scales: scalesConfig } 
+            data:{ labels:selectedYears, datasets:[{ label:'البونص', data:bonusArr, backgroundColor:'#f59e0b', borderRadius: 8 }] }, 
+            options:{ 
+                responsive:true, maintainAspectRatio:false, 
+                plugins: { legend: { display: false } }, // تم حذف الـ Legend
+                scales: scalesConfig 
+            } 
         });
 
         if(charts.ratio) charts.ratio.destroy();
@@ -1032,43 +1134,91 @@
         let cumPerc = [];
         for(let i=0;i<sorted.length;i++){ cumulative += sorted[i][1]; cumPerc.push((cumulative/total)*100); }
 
-        if(charts.pareto) charts.pareto.destroy();
-        charts.pareto = new Chart(document.getElementById("paretoChart"), { 
-            type:'bar', 
+     if(charts.pareto) charts.pareto.destroy(); 
+        const ctxArea = document.getElementById("paretoChart").getContext('2d');
+        
+        // إنشاء التظليل المتدرج (Elegant Shade)
+        let gradientFill = ctxArea.createLinearGradient(0, 0, 0, 400);
+        gradientFill.addColorStop(0, 'rgba(59, 130, 246, 0.4)');   
+        gradientFill.addColorStop(1, 'rgba(59, 130, 246, 0.01)'); 
+
+        // حساب أعلى قيمة في المصفوفة لإعطاء مساحة ديناميكية فوقها
+        let maxRatioValue = Math.max(...ratioArr.length ? ratioArr : [0]);
+        let dynamicSuggestedMax = maxRatioValue + (maxRatioValue * 0.20); // إضافة 20% مساحة إضافية فوق أعلى نقطة
+
+        charts.pareto = new Chart(ctxArea, { 
+            type:'line', 
             data:{ 
-                labels:sorted.map(s=>s[0].length > 20 ? s[0].substring(0,20)+'...' : s[0]), 
-                datasets:[
-                    { type:'bar', label:'الكميات', data:sorted.map(s=>s[1]), backgroundColor:'#0f766e', borderRadius: 6, order: 2 }, 
-                    { type:'line', label:'تراكمي %', data:cumPerc, borderColor:'#ef4444', backgroundColor: '#ef4444', borderWidth: 3, tension: 0.3, yAxisID:'y1', fill:false, order: 1 }
-                ] 
+                labels: selectedYears, 
+                datasets:[{ 
+                    label:'نسبة البونص %', 
+                    data: ratioArr, 
+                    borderColor:'#3b82f6', 
+                    backgroundColor: gradientFill, 
+                    borderWidth: 4, 
+                    fill: true, 
+                    tension: 0.4, 
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#3b82f6',
+                    pointBorderWidth: 3,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }] 
             }, 
             options:{ 
-                responsive:true, maintainAspectRatio:false, 
+                responsive:true, 
+                maintainAspectRatio:false, 
+                layout: {
+                    padding: {
+                        top: 40, 
+                        left: 25,  // يمنع قص الرقم الأول (2023) من اليسار
+                        right: 25,  // يمنع قص الرقم الأخير (2026) من اليمين// إضافة مساحة 40 بيكسل من الأعلى لمنع قص الأرقام
+                    }
+                },
+                plugins: { 
+                    legend: { display: false }, 
+                    datalabels: { 
+                        formatter: (v) => v.toFixed(2) + '%',
+                        font: { size: 14, weight: '800' },
+                        align: 'top',
+                        offset: 8, // تقليل المسافة قليلاً لتبدو متصلة بالنقطة
+                        clamp: true // يمنع خروج النص خارج حدود الـ Canvas كلياً
+                    }
+                },
                 scales:{ 
                     x: scalesConfig.x,
-                    y: scalesConfig.y, 
-                    y1:{ position:'right', grid:{display:false}, beginAtZero:true, max:100, border: {display:false} } 
-                }, 
-                plugins:{ datalabels:{ formatter:(v,ctx)=> ctx.dataset.type==='line' ? v.toFixed(0)+'%' : v } } 
+                    y: { 
+                        ...scalesConfig.y, 
+                        suggestedMax: dynamicSuggestedMax, // رفع سقف المحور ديناميكياً
+                        ticks: { callback: (v) => v + '%' } 
+                    } 
+                } 
             } 
         });
+
+        // تم حذف مخطط الـ Ratio الصغير القديم لأنه استبدل بالمخطط الكبير
+        if(charts.ratio) {
+            document.getElementById("ratioChart").parentElement.style.display = 'none';
+        }
+
     }
 
     function updateTable() {
         let total = filteredData.length, start = (currentPage-1)*rowsPerPage, pageData = filteredData.slice(start, start+rowsPerPage);
         document.getElementById("total-rows").innerText = total;
         
-        let thead = document.getElementById("table-header");
-        thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>الشهر</th><th>23 ك</th><th>23 ب</th><th>24 ك</th><th>24 ب</th><th>25 ك</th><th>25 ب</th><th>26 ك</th><th>26 ب</th><th>إجمالي الكمية</th><th>إجمالي البونص</th><th style="color:var(--primary);">النسبة %</th></tr>';
+       let thead = document.getElementById("table-header");
+        // 🟢 تم إزالة حقل الشهر من الترويسة
+        thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>23 ك</th><th>23 ب</th><th>24 ك</th><th>24 ب</th><th>25 ك</th><th>25 ب</th><th>26 ك</th><th>26 ب</th><th>إجمالي الكمية</th><th>إجمالي البونص</th><th style="color:var(--primary);">النسبة %</th></tr>';
         
         let tbody = document.getElementById("table-body");
         tbody.innerHTML = '';
         for(let r of pageData) {
             let ratioRow = r.totalGoods>0 ? ((r.totalBonus/r.totalGoods)*100).toFixed(2):'0';
+            // 🟢 تم إزالة وسم الـ <td> الخاص بالشهر المتغير ليعرض البيانات مجمعة
             let row = `<tr>
                 <td style="font-weight:800; color:var(--text-main);">${r.custName}</td>
                 <td style="color:var(--text-muted);">${r.description}</td>
-                <td>${r.month}</td>
                 <td>${r.goods2023.toLocaleString()}</td><td>${r.bonus2023.toLocaleString()}</td>
                 <td>${r.goods2024.toLocaleString()}</td><td>${r.bonus2024.toLocaleString()}</td>
                 <td>${r.goods2025.toLocaleString()}</td><td>${r.bonus2025.toLocaleString()}</td>
@@ -1165,6 +1315,84 @@
         } 
     }
 
+    // 🧠 دالة تحليل العملاء المتراجعين ديناميكياً
+    function updateDeclineAnalysis() {
+        let availableYears = activeFilters.years.length ? activeFilters.years : allYears;
+        let baseYear = Math.max(...availableYears);
+        document.getElementById('base-year-badge').innerHTML = `🎯 سنة الأساس للمقارنة: <span style="color:var(--primary); font-size:1rem;">${baseYear}</span>`;
+
+        let custMap = new Map();
+        filteredData.forEach(item => {
+            let cust = item.custName;
+            if(!custMap.has(cust)) {
+                custMap.set(cust, { custName: cust, description: item.description || '-', goods2023: 0, goods2024: 0, goods2025: 0, goods2026: 0, maxDescVolume: 0 });
+            }
+            let row = custMap.get(cust);
+            let itemVolume = item.goods2023 + item.goods2024 + item.goods2025 + item.goods2026;
+            if(itemVolume > row.maxDescVolume) {
+                row.description = item.description || '-';
+                row.maxDescVolume = itemVolume;
+            }
+            row.goods2023 += item.goods2023;
+            row.goods2024 += item.goods2024;
+            row.goods2025 += item.goods2025;
+            row.goods2026 += item.goods2026;
+        });
+
+        let decliningCustomers = [];
+        custMap.forEach(row => {
+            let baseYearGoods = row[`goods${baseYear}`];
+            let previousYearsGoods = [];
+            if(baseYear > 2023 && availableYears.includes(2023)) previousYearsGoods.push(row.goods2023);
+            if(baseYear > 2024 && availableYears.includes(2024)) previousYearsGoods.push(row.goods2024);
+            if(baseYear > 2025 && availableYears.includes(2025)) previousYearsGoods.push(row.goods2025);
+            if(previousYearsGoods.length === 0) return;
+            let maxPrevGoods = Math.max(...previousYearsGoods);
+            if(maxPrevGoods > 0 && baseYearGoods < maxPrevGoods) {
+                let dropAmount = maxPrevGoods - baseYearGoods;
+                let dropPerc = ((dropAmount / maxPrevGoods) * 100).toFixed(1);
+                decliningCustomers.push({ ...row, baseYearGoods, maxPrevGoods, dropAmount, dropPerc });
+            }
+        });
+
+        decliningCustomers.sort((a, b) => b.dropAmount - a.dropAmount);
+
+        let totalDeclines = decliningCustomers.length;
+        let avgDropPerc = totalDeclines ? (decliningCustomers.reduce((sum, item) => sum + parseFloat(item.dropPerc), 0) / totalDeclines).toFixed(1) : '0.0';
+        let topCustomer = decliningCustomers[0] ? decliningCustomers[0].custName : '-';
+
+        document.getElementById('decline-total-count').innerText = totalDeclines.toLocaleString();
+        document.getElementById('decline-average-drop').innerText = `${avgDropPerc}%`;
+        document.getElementById('decline-top-customer').innerText = topCustomer;
+
+        let tbody = document.getElementById("decline-table-body");
+        tbody.innerHTML = '';
+        if(decliningCustomers.length === 0) {
+            document.getElementById('no-decline-msg').style.display = 'block';
+            document.getElementById('decline-table').style.display = 'none';
+        } else {
+            document.getElementById('no-decline-msg').style.display = 'none';
+            document.getElementById('decline-table').style.display = 'table';
+            decliningCustomers.forEach(r => {
+                let tr = `
+                    <tr class="decline-row">
+                        <td style="font-weight:800; color:var(--text-main); font-size:1rem;">${r.custName}</td>
+                        <td style="font-weight:700; color:var(--text-muted);">${r.description}</td>
+                        <td class="${baseYear === 2023 ? 'base-year-highlight' : ''}">${r.goods2023.toLocaleString()}</td>
+                        <td class="${baseYear === 2024 ? 'base-year-highlight' : ''}">${r.goods2024.toLocaleString()}</td>
+                        <td class="${baseYear === 2025 ? 'base-year-highlight' : ''}">${r.goods2025.toLocaleString()}</td>
+                        <td class="${baseYear === 2026 ? 'base-year-highlight' : ''}">${r.goods2026.toLocaleString()}</td>
+                        <td style="font-weight:800; color:var(--text-muted); background: rgba(148,163,184,0.05);">${r.maxPrevGoods.toLocaleString()}</td>
+                        <td style="font-weight:800; color:var(--text-main);">${r.baseYearGoods.toLocaleString()}</td>
+                        <td><span class="decline-val">${r.dropAmount.toLocaleString()}</span></td>
+                        <td><span class="decline-val">${r.dropPerc}%</span></td>
+                    </tr>
+                `;
+                tbody.insertAdjacentHTML('beforeend', tr);
+            });
+        }
+    }
+
     // Presets Action
     document.getElementById("apply-preset").onclick = () => {
         let val = document.getElementById("preset-select").value;
@@ -1224,7 +1452,7 @@
                 const excelRows = filteredData.map(r => ({
                     "العميل": r.custName,
                     "الصنف": r.description,
-                    "الشهر": r.month,
+                  
                     "كمية 2023": r.goods2023,
                     "بونص 2023": r.bonus2023,
                     "كمية 2024": r.goods2024,
@@ -1250,6 +1478,43 @@
                 const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
                 saveAs(blob, `تقرير_الأداء_المصفى_${new Date().toISOString().slice(0,10)}.xlsx`);
                 
+                showLoading(false);
+            }, 200);
+        };
+
+        document.getElementById("decline-export-btn").onclick = function() {
+            showLoading(true);
+            setTimeout(() => {
+                const declineTableRows = Array.from(document.querySelectorAll('#decline-table-body tr'));
+                if(!declineTableRows.length) {
+                    alert("لا توجد بيانات تحليل تراجع للتصدير.");
+                    showLoading(false);
+                    return;
+                }
+
+                const excelRows = declineTableRows.map(tr => {
+                    const cells = Array.from(tr.querySelectorAll('td'));
+                    return {
+                        "العميل": cells[0]?.innerText || '',
+                        "الصنف": cells[1]?.innerText || '',
+                        "كمية 2023": cells[2]?.innerText || '',
+                        "كمية 2024": cells[3]?.innerText || '',
+                        "كمية 2025": cells[4]?.innerText || '',
+                        "كمية 2026": cells[5]?.innerText || '',
+                        "أعلى سحب سابق": cells[6]?.innerText || '',
+                        "سحب سنة الأساس": cells[7]?.innerText || '',
+                        "مقدار التراجع": cells[8]?.innerText || '',
+                        "نسبة التراجع %": cells[9]?.innerText || ''
+                    };
+                });
+
+                const worksheet = XLSX.utils.json_to_sheet(excelRows);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "تحليل التراجع");
+                worksheet['!dir'] = "rtl";
+                const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+                const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                saveAs(blob, `تحليل_التراجع_${new Date().toISOString().slice(0,10)}.xlsx`);
                 showLoading(false);
             }, 200);
         };
