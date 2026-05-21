@@ -225,6 +225,16 @@
             letter-spacing: 0.5px;
         }
 
+        .filter-group .note {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--primary);
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+
         .custom-dropdown, select, input[type="number"] {
             width: 100%;
         }
@@ -464,8 +474,9 @@
         
         table {
             width: 100%;
+            min-width: 100%;
             border-collapse: collapse;
-            white-space: nowrap;
+            table-layout: auto;
         }
         thead {
             background: var(--bg-body);
@@ -474,21 +485,25 @@
             z-index: 10;
         }
         th {
-            padding: 16px 20px;
+            padding: 14px 16px;
             text-align: right;
-            font-size: 0.85rem;
+            font-size: clamp(0.82rem, 0.8vw, 1rem);
             font-weight: 800;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             border-bottom: 2px solid var(--border-color);
+            white-space: normal;
+            word-break: break-word;
         }
         td {
-            padding: 16px 20px;
-            font-size: 0.9rem;
+            padding: 14px 16px;
+            font-size: clamp(0.88rem, 0.9vw, 1rem);
             font-weight: 700;
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
+            white-space: normal;
+            word-break: break-word;
         }
         tbody tr:hover td { background: var(--bg-body); }
         tbody tr:last-child td { border-bottom: none; }
@@ -596,6 +611,20 @@
                 </div>
             </div>
             <div class="filter-group">
+                <label>مجموعة المنتج (متعدد)</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-btn" id="product-group-btn"><span>اختر مجموعة منتج</span> <span>▾</span></div>
+                    <div class="dropdown-content" id="product-group-content"></div>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>الفريق (متعدد)</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-btn" id="team-btn"><span>اختر فريق</span> <span>▾</span></div>
+                    <div class="dropdown-content" id="team-content"></div>
+                </div>
+            </div>
+            <div class="filter-group">
                 <label>السنوات</label>
                 <div class="custom-dropdown">
                     <div class="dropdown-btn" id="years-btn"><span>اختر سنوات</span> <span>▾</span></div>
@@ -623,15 +652,17 @@
             </div>
             <div class="filter-group">
                 <label>فلاتر جاهزة (Presets)</label>
+                <span class="note">لا تنسى فلتر YTD!</span>
                 <select id="preset-select">
                     <option value="">اختر إعداد مسبق...</option>
                     <option value="last_year">آخر سنة (2026)</option>
+                    <option value="ytd">YTD - حتى آخر شهر بيع في 2026</option>
                     <option value="top_prod">أعلى 10 أصناف</option>
                     <option value="all">عرض كل البيانات</option>
                 </select>
             </div>
             <div class="filter-group" style="display: flex; align-items: flex-end; gap: 10px;">
-                <select id="compare-select" style="display: none;"><option value="none">بدون مقارنة</option></select> <button id="apply-preset" class="btn btn-primary" style="flex: 1; justify-content: center;">تطبيق الـ Preset</button>
+                <select id="compare-select" style="display: none;"><option value="none">بدون مقارنة</option></select>
                 <button id="reset-filters" class="btn" style="flex: 1; justify-content: center; color: #ef4444; border-color: #fca5a5;">مسح الفلاتر</button>
             </div>
         </div>
@@ -746,12 +777,15 @@
         color: function(context) { return document.body.classList.contains('dark') ? '#f8fafc' : '#1e293b'; },
         anchor: 'end', align: 'top', offset: 4,
         font: { weight: 'bold', size: 12, family: 'Almarai' },
-        formatter: (v) => v !== 0 && v !== undefined ? v.toLocaleString() : ''
+        formatter: (value) => {
+            let num = typeof value === 'object' && value !== null ? value.y : value;
+            return (num || num === 0) ? Number(num).toFixed(1).toLocaleString() : '';
+        }
     });
 
     let rawData = [], filteredData = [], currentPage = 1, rowsPerPage = 25;
     let charts = { goods: null, bonus: null, ratio: null, pareto: null };
-    let activeFilters = { customers: [], descriptions: [], years: [], monthFrom: null, monthTo: null, topN: 0 };
+    let activeFilters = { customers: [], descriptions: [], productGroups: [], teams: [], years: [], monthFrom: null, monthTo: null, topN: 0 };
     let darkMode = localStorage.getItem('darkMode') === 'true';
     let debounceTimer;
     const allYears = [2023,2024,2025,2026];
@@ -779,7 +813,7 @@
     }
 
     function buildMapping(firstRow) {
-        const required = { cust:"Cust Name", desc:"Description", month:"Month", g2023:"Net Goods_2023", b2023:"Net Bonus_2023", g2024:"Net Goods_2024", b2024:"Net Bonus_2024", g2025:"Net Goods_2025", b2025:"Net Bonus_2025", g2026:"Net Goods_2026", b2026:"Net Bonus_2026", totalGoods:"Total  Net Goods", totalBonus:"Total  Net Bonus" };
+        const required = { cust:"Cust Name", desc:"Description", month:"Month", productGroup:"Product Group", team:"Team", g2023:"Net Goods_2023", b2023:"Net Bonus_2023", g2024:"Net Goods_2024", b2024:"Net Bonus_2024", g2025:"Net Goods_2025", b2025:"Net Bonus_2025", g2026:"Net Goods_2026", b2026:"Net Bonus_2026", totalGoods:"Total  Net Goods", totalBonus:"Total  Net Bonus" };
         const norm = s => s.trim().replace(/\s+/g, ' ');
         const keys = Object.keys(firstRow);
         let map = {};
@@ -795,21 +829,27 @@
         function getVal(k) { let col = mapping[k]; if(!col) return 0; let v = row[col]; let num = parseFloat(v); return isNaN(num) ? 0 : num; }
         function getStr(k) { let col = mapping[k]; if(!col) return ""; let v = row[col]; return v ? String(v).trim() : ""; }
         let cust = getStr("cust"), desc = getStr("desc"), month = getStr("month");
+        let productGroup = getStr("productGroup"), team = getStr("team");
         let goods2023=getVal("g2023"), bonus2023=getVal("b2023"), goods2024=getVal("g2024"), bonus2024=getVal("b2024");
         let goods2025=getVal("g2025"), bonus2025=getVal("b2025"), goods2026=getVal("g2026"), bonus2026=getVal("b2026");
         let totalGoods=getVal("totalGoods"), totalBonus=getVal("totalBonus");
         if(totalGoods===0 && (goods2023+goods2024+goods2025+goods2026)>0) totalGoods = goods2023+goods2024+goods2025+goods2026;
         if(totalBonus===0 && (bonus2023+bonus2024+bonus2025+bonus2026)>0) totalBonus = bonus2023+bonus2024+bonus2025+bonus2026;
-        return { custName:cust, description:desc, month, goods2023, bonus2023, goods2024, bonus2024, goods2025, bonus2025, goods2026, bonus2026, totalGoods, totalBonus };
+        return { custName:cust, description:desc, productGroup, team, month, goods2023, bonus2023, goods2024, bonus2024, goods2025, bonus2025, goods2026, bonus2026, totalGoods, totalBonus };
     }
 
     function initFiltersFromData() {
         const allCust = [...new Set(rawData.map(d => d.custName).filter(Boolean))].sort();
         const allDesc = [...new Set(rawData.map(d => d.description).filter(Boolean))].sort();
+        const allProductGroups = [...new Set(rawData.map(d => d.productGroup).filter(Boolean))].sort();
+        const allTeams = [...new Set(rawData.map(d => d.team).filter(Boolean))].sort();
         buildChecklist("cust-content", allCust, "cust", activeFilters.customers);
         buildChecklist("desc-content", allDesc, "desc", activeFilters.descriptions);
+        buildChecklist("product-group-content", allProductGroups, "productGroup", activeFilters.productGroups);
+        buildChecklist("team-content", allTeams, "team", activeFilters.teams);
         buildChecklist("years-content", allYears, "year", activeFilters.years);
         attachDropdownEvents();
+        updateAllDropdownButtonLabels();
     }
 
     function buildChecklist(containerId, items, type, selectedVals) {
@@ -843,7 +883,10 @@
                 let count = 0;
                 if(type === 'cust') count = rawData.filter(d => d.custName === val).length;
                 else if(type === 'desc') count = rawData.filter(d => d.description === val).length;
-                else count = rawData.filter(d => d[`goods${val}`]!==0 || d[`bonus${val}`]!==0).length;
+                else if(type === 'productGroup') count = rawData.filter(d => d.productGroup === val).length;
+                else if(type === 'team') count = rawData.filter(d => d.team === val).length;
+                else if(type === 'year') count = rawData.filter(d => d[`goods${val}`]!==0 || d[`bonus${val}`]!==0).length;
+                else count = rawData.filter(d => d.toString().toLowerCase().includes(val.toString().toLowerCase())).length;
                 
                 const countSpan = document.createElement('span'); 
                 countSpan.className = 'count'; 
@@ -865,22 +908,92 @@
         if(select) {
             if(type === 'cust') activeFilters.customers = selectedVals;
             else if(type === 'desc') activeFilters.descriptions = selectedVals;
+            else if(type === 'productGroup') activeFilters.productGroups = selectedVals;
+            else if(type === 'team') activeFilters.teams = selectedVals;
             else if(type === 'year') activeFilters.years = selectedVals.map(Number);
         } else {
             if(type === 'cust') activeFilters.customers = [];
             else if(type === 'desc') activeFilters.descriptions = [];
+            else if(type === 'productGroup') activeFilters.productGroups = [];
+            else if(type === 'team') activeFilters.teams = [];
             else if(type === 'year') activeFilters.years = [];
         }
+        updateDropdownButtonLabel(type);
         refreshAfterFilter();
     }
 
     function toggleSelection(type, val, isChecked) {
-        if(type === 'cust') { if(isChecked && !activeFilters.customers.includes(val)) activeFilters.customers.push(val); else if(!isChecked) activeFilters.customers = activeFilters.customers.filter(v => v !== val); } 
-        else if(type === 'desc') { if(isChecked && !activeFilters.descriptions.includes(val)) activeFilters.descriptions.push(val); else activeFilters.descriptions = activeFilters.descriptions.filter(v => v !== val); } 
-        else if(type === 'year') { let num = Number(val); if(isChecked && !activeFilters.years.includes(num)) activeFilters.years.push(num); else activeFilters.years = activeFilters.years.filter(v => v !== num); }
+        if(type === 'cust') {
+            if(isChecked && !activeFilters.customers.includes(val)) activeFilters.customers.push(val);
+            else if(!isChecked) activeFilters.customers = activeFilters.customers.filter(v => v !== val);
+        } else if(type === 'desc') {
+            if(isChecked && !activeFilters.descriptions.includes(val)) activeFilters.descriptions.push(val);
+            else if(!isChecked) activeFilters.descriptions = activeFilters.descriptions.filter(v => v !== val);
+        } else if(type === 'productGroup') {
+            if(isChecked && !activeFilters.productGroups.includes(val)) activeFilters.productGroups.push(val);
+            else if(!isChecked) activeFilters.productGroups = activeFilters.productGroups.filter(v => v !== val);
+        } else if(type === 'team') {
+            if(isChecked && !activeFilters.teams.includes(val)) activeFilters.teams.push(val);
+            else if(!isChecked) activeFilters.teams = activeFilters.teams.filter(v => v !== val);
+        } else if(type === 'year') {
+            let num = Number(val);
+            if(isChecked && !activeFilters.years.includes(num)) activeFilters.years.push(num);
+            else activeFilters.years = activeFilters.years.filter(v => v !== num);
+        }
+        updateDropdownButtonLabel(type);
     }
 
-    function refreshAfterFilter() { if(debounceTimer) clearTimeout(debounceTimer); debounceTimer = setTimeout(() => applyGlobalFiltersAndRender(), 200); }
+    function getDropdownButton(type) {
+        const mapping = {
+            cust: 'cust-btn',
+            desc: 'desc-btn',
+            productGroup: 'product-group-btn',
+            team: 'team-btn',
+            year: 'years-btn'
+        };
+        return document.getElementById(mapping[type]);
+    }
+
+    function getDropdownDefaultText(type) {
+        if(type === 'cust') return 'اختر زبائن';
+        if(type === 'desc') return 'اختر أصناف';
+        if(type === 'productGroup') return 'اختر مجموعة منتج';
+        if(type === 'team') return 'اختر فريق';
+        if(type === 'year') return 'اختر سنوات';
+        return 'اختر';
+    }
+
+    function getSelectedValues(type) {
+        if(type === 'cust') return activeFilters.customers;
+        if(type === 'desc') return activeFilters.descriptions;
+        if(type === 'productGroup') return activeFilters.productGroups;
+        if(type === 'team') return activeFilters.teams;
+        if(type === 'year') return activeFilters.years.map(String);
+        return [];
+    }
+
+    function updateDropdownButtonLabel(type) {
+        const btn = getDropdownButton(type);
+        if(!btn) return;
+        const selected = getSelectedValues(type);
+        const labelSpan = btn.querySelector('span');
+        if(!labelSpan) return;
+        if(selected.length === 0) {
+            labelSpan.innerText = getDropdownDefaultText(type);
+        } else if(selected.length === 1) {
+            labelSpan.innerText = selected[0];
+        } else if(type === 'year') {
+            labelSpan.innerText = selected.join(' , ');
+        } else {
+            labelSpan.innerText = `${selected.length} محدد`;
+        }
+    }
+
+    function updateAllDropdownButtonLabels() {
+        ['cust','desc','productGroup','team','year'].forEach(type => updateDropdownButtonLabel(type));
+    }
+
+    function refreshAfterFilter() { if(debounceTimer) clearTimeout(debounceTimer); debounceTimer = setTimeout(() => { applyGlobalFiltersAndRender(); }, 200); }
 
     function getFilteredRowsExcept(excludeType) {
         let searchText = document.getElementById("global-search").value.trim().toLowerCase();
@@ -890,6 +1003,8 @@
         return rawData.filter(item => {
             if (excludeType !== 'cust' && activeFilters.customers.length && !activeFilters.customers.includes(item.custName)) return false;
             if (excludeType !== 'desc' && activeFilters.descriptions.length && !activeFilters.descriptions.includes(item.description)) return false;
+            if (excludeType !== 'productGroup' && activeFilters.productGroups.length && !activeFilters.productGroups.includes(item.productGroup)) return false;
+            if (excludeType !== 'team' && activeFilters.teams.length && !activeFilters.teams.includes(item.team)) return false;
             if (excludeType !== 'year' && activeFilters.years.length) {
                 let hasYear = activeFilters.years.some(y => item[`goods${y}`] !== 0 || item[`bonus${y}`] !== 0);
                 if(!hasYear) return false;
@@ -901,9 +1016,11 @@
             if(searchText) {
                 let inCust = item.custName.toLowerCase().includes(searchText);
                 let inDesc = item.description.toLowerCase().includes(searchText);
+                let inGroup = item.productGroup.toLowerCase().includes(searchText);
+                let inTeam = item.team.toLowerCase().includes(searchText);
                 let inMonth = item.month.toString().includes(searchText);
                 let inYears = [2023,2024,2025,2026].some(y => item[`goods${y}`].toString().includes(searchText) || item[`bonus${y}`].toString().includes(searchText));
-                if(!(inCust || inDesc || inMonth || inYears)) return false;
+                if(!(inCust || inDesc || inGroup || inTeam || inMonth || inYears)) return false;
             }
             return true;
         });
@@ -925,6 +1042,26 @@
             const val = label.getAttribute('data-value');
             const cb = label.querySelector('input');
             const count = descRows.filter(d => d.description === val).length;
+            label.querySelector('.count').innerText = ` (${count})`;
+            if (count === 0 && !cb.checked) label.style.display = 'none';
+            else label.style.display = 'flex';
+        });
+
+        const productGroupRows = getFilteredRowsExcept('productGroup');
+        document.querySelectorAll('#product-group-content-options .filter-option').forEach(label => {
+            const val = label.getAttribute('data-value');
+            const cb = label.querySelector('input');
+            const count = productGroupRows.filter(d => d.productGroup === val).length;
+            label.querySelector('.count').innerText = ` (${count})`;
+            if (count === 0 && !cb.checked) label.style.display = 'none';
+            else label.style.display = 'flex';
+        });
+
+        const teamRows = getFilteredRowsExcept('team');
+        document.querySelectorAll('#team-content-options .filter-option').forEach(label => {
+            const val = label.getAttribute('data-value');
+            const cb = label.querySelector('input');
+            const count = teamRows.filter(d => d.team === val).length;
             label.querySelector('.count').innerText = ` (${count})`;
             if (count === 0 && !cb.checked) label.style.display = 'none';
             else label.style.display = 'flex';
@@ -952,14 +1089,18 @@
         let filtered = rawData.filter(item => {
             if(activeFilters.customers.length && !activeFilters.customers.includes(item.custName)) return false;
             if(activeFilters.descriptions.length && !activeFilters.descriptions.includes(item.description)) return false;
+            if(activeFilters.productGroups.length && !activeFilters.productGroups.includes(item.productGroup)) return false;
+            if(activeFilters.teams.length && !activeFilters.teams.includes(item.team)) return false;
             if(activeFilters.years.length) { let hasYear = activeFilters.years.some(y => item[`goods${y}`] !== 0 || item[`bonus${y}`] !== 0); if(!hasYear) return false; }
             if(monthFrom && monthTo && monthFrom <= monthTo) { let m = parseInt(item.month); if(isNaN(m) || m < monthFrom || m > monthTo) return false; }
             if(searchText) {
                 let inCust = item.custName.toLowerCase().includes(searchText);
                 let inDesc = item.description.toLowerCase().includes(searchText);
+                let inGroup = item.productGroup.toLowerCase().includes(searchText);
+                let inTeam = item.team.toLowerCase().includes(searchText);
                 let inMonth = item.month.toString().includes(searchText);
                 let inYears = [2023,2024,2025,2026].some(y => item[`goods${y}`].toString().includes(searchText) || item[`bonus${y}`].toString().includes(searchText));
-                if(!(inCust || inDesc || inMonth || inYears)) return false;
+                if(!(inCust || inDesc || inGroup || inTeam || inMonth || inYears)) return false;
             }
             return true;
         });
@@ -974,10 +1115,11 @@
 
         let aggMap = new Map();
         filtered.forEach(item => {
-            let key = `${item.custName}|||${item.description}`;
+            let key = `${item.custName}|||${item.description}|||${item.productGroup}|||${item.team}`;
             if(!aggMap.has(key)) {
                 aggMap.set(key, {
                     custName: item.custName, description: item.description,
+                    productGroup: item.productGroup, team: item.team,
                     goods2023: 0, bonus2023: 0, goods2024: 0, bonus2024: 0,
                     goods2025: 0, bonus2025: 0, goods2026: 0, bonus2026: 0,
                     totalGoods: 0, totalBonus: 0
@@ -998,6 +1140,7 @@
         updateTable();
         updateDeclineAnalysis();
         updateChipsUI();
+        updateAllDropdownButtonLabels();
         updateDropdownsCascading();
         Chart.defaults.set('plugins.datalabels', { color: document.body.classList.contains('dark') ? '#f8fafc' : '#1e293b' });
     }
@@ -1009,11 +1152,13 @@
 
         let custMap = new Map();
         filteredData.forEach(item => {
-            let key = `${item.custName}|||${item.description}`;
+            let key = `${item.custName}|||${item.description}|||${item.productGroup}|||${item.team}`;
             if(!custMap.has(key)) {
                 custMap.set(key, { 
                     custName: item.custName, 
                     description: item.description || '-', 
+                    productGroup: item.productGroup || '-', 
+                    team: item.team || '-', 
                     goods2023: 0, goods2024: 0, goods2025: 0, goods2026: 0 
                 });
             }
@@ -1130,14 +1275,17 @@
             });
         }
 
-        let selectedYears = activeFilters.years.length ? activeFilters.years : allYears;
+        let selectedYears = activeFilters.years.length ? [...activeFilters.years] : [...allYears];
         selectedYears.sort();
-        let goodsArr = [], bonusArr = [], ratioArr = [];
-        for(let y of selectedYears) {
+        const yearStats = selectedYears.map(y => {
             let g = filteredData.reduce((s,r)=>s+r[`goods${y}`],0);
             let b = filteredData.reduce((s,r)=>s+r[`bonus${y}`],0);
-            goodsArr.push(g); bonusArr.push(b); ratioArr.push(g>0 ? (b/g)*100 : 0);
-        }
+            return { year:y, goods:g, bonus:b, ratio: g>0 ? (b/g)*100 : 0 };
+        });
+
+        const goodsStats = yearStats.filter(stat => stat.goods !== 0);
+        const bonusStats = yearStats.filter(stat => stat.bonus !== 0);
+        const ratioStats = yearStats.filter(stat => stat.ratio !== 0);
 
         const scalesConfig = {
             x: { grid: { display: false }, ticks: { font: { family: 'Almarai', weight: 'bold' } } },
@@ -1147,22 +1295,48 @@
         if(charts.goods) charts.goods.destroy();
         charts.goods = new Chart(document.getElementById("goodsChart"), { 
             type:'bar', 
-            data:{ labels:selectedYears, datasets:[{ label:'الكميات', data:goodsArr, backgroundColor:'#0f766e', borderRadius: 8 }] }, 
+            data:{ labels:goodsStats.map(stat => stat.year), datasets:[{ label:'الكميات', data:goodsStats.map(stat => stat.goods), backgroundColor:'#0f766e', borderRadius: 8 }] }, 
             options:{ responsive:true, maintainAspectRatio:false, plugins: { legend: { display: false } }, scales: scalesConfig } 
         });
 
         if(charts.bonus) charts.bonus.destroy();
         charts.bonus = new Chart(document.getElementById("bonusChart"), { 
             type:'bar', 
-            data:{ labels:selectedYears, datasets:[{ label:'البونص', data:bonusArr, backgroundColor:'#f59e0b', borderRadius: 8 }] }, 
+            data:{ labels:bonusStats.map(stat => stat.year), datasets:[{ label:'البونص', data:bonusStats.map(stat => stat.bonus), backgroundColor:'#f59e0b', borderRadius: 8 }] }, 
             options:{ responsive:true, maintainAspectRatio:false, plugins: { legend: { display: false } }, scales: scalesConfig } 
         });
 
-        if(charts.ratio) charts.ratio.destroy();
-        charts.ratio = new Chart(document.getElementById("ratioChart"), { 
+        const ratioCanvas = document.getElementById("ratioChart");
+        if(charts.ratio) {
+            charts.ratio.destroy();
+            charts.ratio = null;
+        }
+        const ratioDataset = ratioStats.map(stat => ({ x: stat.year, y: stat.ratio }));
+        const singleYear = ratioStats.length === 1;
+        const ratioOptions = {
+            responsive:true,
+            maintainAspectRatio:false,
+            scales: {
+                x: singleYear ? {
+                    type: 'category',
+                    labels: [ratioStats[0].year],
+                    offset: true,
+                    grid: { display: false },
+                    ticks: { font: { family:'Almarai', weight:'bold' } }
+                } : {
+                    type: 'linear',
+                    position: 'bottom',
+                    grid: { display: false },
+                    ticks: { font: { family:'Almarai', weight:'bold' }, callback: value => String(value) }
+                },
+                y: scalesConfig.y
+            },
+            plugins:{ datalabels:{ align:'top', anchor:'end' } }
+        };
+        charts.ratio = new Chart(ratioCanvas, { 
             type:'line', 
-            data:{ labels:selectedYears, datasets:[{ label:'نسبة البونص %', data:ratioArr, borderColor:'#3b82f6', backgroundColor:'rgba(59, 130, 246, 0.1)', borderWidth: 3, fill:true, tension:0.4, pointBackgroundColor: '#ffffff', pointBorderColor: '#3b82f6', pointBorderWidth: 2, pointRadius: 5 }] }, 
-            options:{ responsive:true, maintainAspectRatio:false, scales: scalesConfig, plugins:{ datalabels:{ formatter:(v)=>v.toFixed(1)+'%' } } } 
+            data:{ datasets:[{ label:'نسبة البونص %', data:ratioDataset, borderColor:'#3b82f6', backgroundColor:'rgba(59, 130, 246, 0.1)', borderWidth: 3, fill:true, tension:0.4, pointBackgroundColor: '#ffffff', pointBorderColor: '#3b82f6', pointBorderWidth: 2, pointRadius: 5 }] }, 
+            options: ratioOptions
         });
 
         let prodMap = new Map();
@@ -1178,16 +1352,18 @@
         gradientFill.addColorStop(0, 'rgba(59, 130, 246, 0.4)');   
         gradientFill.addColorStop(1, 'rgba(59, 130, 246, 0.01)'); 
 
-        let maxRatioValue = Math.max(...ratioArr.length ? ratioArr : [0]);
+        const paretoLabels = ratioStats.map(stat => stat.year);
+        const paretoData = ratioStats.map(stat => stat.ratio);
+        let maxRatioValue = Math.max(...paretoData.length ? paretoData : [0]);
         let dynamicSuggestedMax = maxRatioValue + (maxRatioValue * 0.20);
 
         charts.pareto = new Chart(ctxArea, { 
             type:'line', 
             data:{ 
-                labels: selectedYears, 
+                labels: paretoLabels, 
                 datasets:[{ 
                     label:'نسبة البونص %', 
-                    data: ratioArr, 
+                    data: paretoData, 
                     borderColor:'#3b82f6', 
                     backgroundColor: gradientFill, 
                     borderWidth: 4, 
@@ -1229,21 +1405,45 @@
     function updateTable() {
         let total = filteredData.length, start = (currentPage-1)*rowsPerPage, pageData = filteredData.slice(start, start+rowsPerPage);
         document.getElementById("total-rows").innerText = total;
+
+        const columns = [
+            { key:'custName', label:'العميل', always:true },
+            { key:'description', label:'الصنف', always:true },
+            { key:'productGroup', label:'مجموعة المنتج', always:true },
+            { key:'team', label:'الفريق', always:true },
+            { key:'goods2023', label:'كمية 23' },
+            { key:'bonus2023', label:'بونص 23' },
+            { key:'goods2024', label:'كمية 24' },
+            { key:'bonus2024', label:'بونص 24' },
+            { key:'goods2025', label:'كمية 25' },
+            { key:'bonus2025', label:'بونص 25' },
+            { key:'goods2026', label:'كمية 26' },
+            { key:'bonus2026', label:'بونص 26' }
+        ];
+
+        const totals = {};
+        columns.forEach(col => {
+            if(col.always) return;
+            totals[col.key] = filteredData.reduce((sum, row) => sum + Math.max(0, Number(row[col.key]) || 0), 0);
+        });
+
+        const visibleColumns = columns.filter(col => col.always || totals[col.key] !== 0);
+
         let thead = document.getElementById("table-header");
-        thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>كمية 23</th><th>بونص 23</th><th>كمية 24</th><th>بونص 24</th><th>كمية 25</th><th>بونص 25</th><th>كمية 26</th><th>بونص 26</th><th style="color:var(--primary);">النسبة %</th></tr>';
+        thead.innerHTML = '<tr>' + visibleColumns.map(col => `<th>${col.label}</th>`).join('') + '<th style="color:var(--primary);">النسبة %</th></tr>';
+
         let tbody = document.getElementById("table-body");
         tbody.innerHTML = '';
         for(let r of pageData) {
             let ratioRow = r.totalGoods>0 ? ((r.totalBonus/r.totalGoods)*100).toFixed(2):'0';
-            let row = `<tr>
-                <td style="font-weight:800; color:var(--text-main);">${r.custName}</td>
-                <td style="color:var(--text-muted);">${r.description}</td>
-                <td>${r.goods2023.toLocaleString()}</td><td>${r.bonus2023.toLocaleString()}</td>
-                <td>${r.goods2024.toLocaleString()}</td><td>${r.bonus2024.toLocaleString()}</td>
-                <td>${r.goods2025.toLocaleString()}</td><td>${r.bonus2025.toLocaleString()}</td>
-                <td>${r.goods2026.toLocaleString()}</td><td>${r.bonus2026.toLocaleString()}</td>
-                <td style="font-weight:800; color:var(--primary);">${ratioRow}%</td>
-            </tr>`;
+            let rowCells = visibleColumns.map(col => {
+                let value = r[col.key];
+                if(col.key === 'custName') return `<td style="font-weight:800; color:var(--text-main);">${value}</td>`;
+                if(col.key === 'description') return `<td style="color:var(--text-muted);">${value}</td>`;
+                if(col.key === 'productGroup' || col.key === 'team') return `<td style="color:var(--text-muted);">${value || '-'}</td>`;
+                return `<td>${Number(value).toLocaleString()}</td>`;
+            }).join('');
+            let row = `<tr>${rowCells}<td style="font-weight:800; color:var(--primary);">${ratioRow}%</td></tr>`;
             tbody.insertAdjacentHTML('beforeend', row);
         }
         document.getElementById("row-counter").innerText = start + pageData.length;
@@ -1263,8 +1463,18 @@
         let area = document.getElementById("active-chips");
         area.innerHTML = '';
         let count = 0;
-        if(activeFilters.customers.length) { addChip(area, `🏢 ${activeFilters.customers.length} عملاء`, 'cust'); count++; }
-        if(activeFilters.descriptions.length) { addChip(area, `🏷️ ${activeFilters.descriptions.length} أصناف`, 'desc'); count++; }
+        if(activeFilters.customers.length) {
+            let text = activeFilters.customers.length === 1 ? activeFilters.customers[0] : `${activeFilters.customers.length} عملاء`;
+            addChip(area, `🏢 ${text}`, 'cust'); count++; }
+        if(activeFilters.descriptions.length) {
+            let text = activeFilters.descriptions.length === 1 ? activeFilters.descriptions[0] : `${activeFilters.descriptions.length} أصناف`;
+            addChip(area, `🏷️ ${text}`, 'desc'); count++; }
+        if(activeFilters.productGroups.length) {
+            let text = activeFilters.productGroups.length === 1 ? activeFilters.productGroups[0] : `${activeFilters.productGroups.length} مجموعات`;
+            addChip(area, `📦 ${text}`, 'productGroup'); count++; }
+        if(activeFilters.teams.length) {
+            let text = activeFilters.teams.length === 1 ? activeFilters.teams[0] : `${activeFilters.teams.length} فرق`;
+            addChip(area, `👥 ${text}`, 'team'); count++; }
         if(activeFilters.years.length) { addChip(area, `📅 ${activeFilters.years.join(' , ')}`, 'years'); count++; }
         let mf = document.getElementById("month-from").value, mt = document.getElementById("month-to").value;
         if(mf && mt) { addChip(area, `🗓️ شهر ${mf} لـ ${mt}`, 'monthRange'); count++; }
@@ -1285,6 +1495,8 @@
     function removeFilterByType(type) {
         if(type==='cust') activeFilters.customers = [];
         else if(type==='desc') activeFilters.descriptions = [];
+        else if(type==='productGroup') activeFilters.productGroups = [];
+        else if(type==='team') activeFilters.teams = [];
         else if(type==='years') activeFilters.years = [];
         else if(type==='monthRange') { document.getElementById("month-from").value = ''; document.getElementById("month-to").value = ''; }
         else if(type==='topN') document.getElementById("top-n-select").value = '0';
@@ -1293,7 +1505,7 @@
     }
 
     function resetAllFilters() {
-        activeFilters = { customers: [], descriptions: [], years: [], monthFrom: null, monthTo: null, topN: 0 };
+        activeFilters = { customers: [], descriptions: [], productGroups: [], teams: [], years: [], monthFrom: null, monthTo: null, topN: 0 };
         document.getElementById("month-from").value = ''; document.getElementById("month-to").value = '';
         document.getElementById("top-n-select").value = '0'; document.getElementById("global-search").value = '';
         document.getElementById("preset-select").value = '';
@@ -1304,6 +1516,8 @@
     function attachDropdownEvents() {
         document.getElementById("cust-btn").onclick = (e) => { e.stopPropagation(); toggleDrop("cust-content"); };
         document.getElementById("desc-btn").onclick = (e) => { e.stopPropagation(); toggleDrop("desc-content"); };
+        document.getElementById("product-group-btn").onclick = (e) => { e.stopPropagation(); toggleDrop("product-group-content"); };
+        document.getElementById("team-btn").onclick = (e) => { e.stopPropagation(); toggleDrop("team-content"); };
         document.getElementById("years-btn").onclick = (e) => { e.stopPropagation(); toggleDrop("years-content"); };
         document.addEventListener('click', () => { document.querySelectorAll('.dropdown-content').forEach(d => d.classList.remove('show')); });
         document.querySelectorAll('.dropdown-content').forEach(d => { d.addEventListener('click', e => e.stopPropagation()); });
@@ -1327,7 +1541,7 @@
     }
 
     // Presets Action
-    document.getElementById("apply-preset").onclick = () => {
+    document.getElementById("preset-select").addEventListener('change', () => {
         let val = document.getElementById("preset-select").value;
         if(!val) return;
         resetAllFilters();
@@ -1335,10 +1549,28 @@
             activeFilters.years = [2026]; 
             let cb = document.querySelector(`#years-content input[value="2026"]`); if(cb) cb.checked = true;
         }
+        else if(val === 'ytd') {
+            const rows2026 = rawData.filter(item => (item.goods2026 !== 0 || item.bonus2026 !== 0));
+            const lastMonth = rows2026
+                .map(r => parseInt(String(r.month).replace(/[^0-9]/g, '')))
+                .filter(m => !isNaN(m) && m >= 1 && m <= 12)
+                .reduce((max, m) => Math.max(max, m), 0);
+            if(lastMonth > 0) {
+                activeFilters.years = [2026];
+                let cb = document.querySelector(`#years-content input[value="2026"]`);
+                if(cb) cb.checked = true;
+                const monthFromInput = document.getElementById("month-from");
+                const monthToInput = document.getElementById("month-to");
+                monthFromInput.value = '1';
+                monthToInput.value = String(lastMonth);
+            } else {
+                alert('لا توجد بيانات بيع في سنة 2026.');
+            }
+        }
         else if(val === 'top_prod') { document.getElementById("top-n-select").value = '10'; }
         else if(val === 'all') { /* Already reset */ }
         refreshAfterFilter();
-    };
+    });
 
     document.getElementById("reset-filters").onclick = resetAllFilters;
     document.getElementById("global-search").addEventListener('keyup', (e) => { refreshAfterFilter(); });
@@ -1379,6 +1611,8 @@
                 const excelRows = filteredData.map(r => ({
                     "العميل": r.custName,
                     "الصنف": r.description,
+                    "مجموعة المنتج": r.productGroup || '-',
+                    "الفريق": r.team || '-',
                     "كمية 2023": r.goods2023,
                     "بونص 2023": r.bonus2023,
                     "كمية 2024": r.goods2024,
