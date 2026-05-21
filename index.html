@@ -700,10 +700,10 @@
                     <tr>
                         <th>العميل</th>
                         <th>الصنف</th>
-                        <th>23 ك</th>
-                        <th>24 ك</th>
-                        <th>25 ك</th>
-                        <th>26 ك</th>
+                        <th>23 كمية</th>
+                        <th>24 كمية</th>
+                        <th>25 كمية</th>
+                        <th>26 كمية</th>
                         <th>أعلى سحب سابق</th>
                         <th>سحب سنة الأساس</th>
                         <th style="color: #ef4444;">مقدار التراجع</th>
@@ -1209,23 +1209,20 @@
         
        let thead = document.getElementById("table-header");
         // 🟢 تم إزالة حقل الشهر من الترويسة
-thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>كمية 23</th><th>بونص 23</th><th>كمية 24</th><th>بونص 24</th><th>كمية 25</th><th>بونص 25</th><th>كمية 26</th><th>بونص 26</th><th>إجمالي الكمية</th><th>إجمالي البونص</th><th style="color:var(--primary);">النسبة %</th></tr>';        
-        let tbody = document.getElementById("table-body");
+thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>كمية 23</th><th>بونص 23</th><th>كمية 24</th><th>بونص 24</th><th>كمية 25</th><th>بونص 25</th><th>كمية 26</th><th>بونص 26</th><th style="color:var(--primary);">النسبة %</th></tr>';        let tbody = document.getElementById("table-body");
         tbody.innerHTML = '';
         for(let r of pageData) {
             let ratioRow = r.totalGoods>0 ? ((r.totalBonus/r.totalGoods)*100).toFixed(2):'0';
             // 🟢 تم إزالة وسم الـ <td> الخاص بالشهر المتغير ليعرض البيانات مجمعة
-            let row = `<tr>
-                <td style="font-weight:800; color:var(--text-main);">${r.custName}</td>
-                <td style="color:var(--text-muted);">${r.description}</td>
-                <td>${r.goods2023.toLocaleString()}</td><td>${r.bonus2023.toLocaleString()}</td>
-                <td>${r.goods2024.toLocaleString()}</td><td>${r.bonus2024.toLocaleString()}</td>
-                <td>${r.goods2025.toLocaleString()}</td><td>${r.bonus2025.toLocaleString()}</td>
-                <td>${r.goods2026.toLocaleString()}</td><td>${r.bonus2026.toLocaleString()}</td>
-                <td style="background: rgba(20,184,166,0.05); font-weight:800;">${r.totalGoods.toLocaleString()}</td>
-                <td style="background: rgba(245,158,11,0.05); font-weight:800;">${r.totalBonus.toLocaleString()}</td>
-                <td style="font-weight:800; color:var(--primary);">${ratioRow}%</td>
-            </tr>`;
+           let row = `<tr>
+    <td style="font-weight:800; color:var(--text-main);">${r.custName}</td>
+    <td style="color:var(--text-muted);">${r.description}</td>
+    <td>${r.goods2023.toLocaleString()}</td><td>${r.bonus2023.toLocaleString()}</td>
+    <td>${r.goods2024.toLocaleString()}</td><td>${r.bonus2024.toLocaleString()}</td>
+    <td>${r.goods2025.toLocaleString()}</td><td>${r.bonus2025.toLocaleString()}</td>
+    <td>${r.goods2026.toLocaleString()}</td><td>${r.bonus2026.toLocaleString()}</td>
+    <td style="font-weight:800; color:var(--primary);">${ratioRow}%</td>
+</tr>`;
             tbody.insertAdjacentHTML('beforeend', row);
         }
         
@@ -1316,85 +1313,28 @@ thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>كمية 23</
 
     // 🧠 دالة تحليل العملاء المتراجعين ديناميكياً
   // 🧠 دالة تحليل العملاء المتراجعين ديناميكياً
-    function updateDeclineAnalysis() {
-        let availableYears = activeFilters.years.length ? activeFilters.years : allYears;
-        let baseYear = Math.max(...availableYears);
-        document.getElementById('base-year-badge').innerHTML = `🎯 سنة الأساس للمقارنة: <span style="color:var(--primary); font-size:1rem;">${baseYear}</span>`;
-
-        let custMap = new Map();
-        filteredData.forEach(item => {
-            // 🟢 التعديل الجوهري: استخدام مفتاح مركب (العميل + الصنف) لعدم دمج الأصناف المختلفة
-            let key = `${item.custName}|||${item.description}`;
-            
-            if(!custMap.has(key)) {
-                custMap.set(key, { 
-                    custName: item.custName, 
-                    description: item.description || '-', 
-                    goods2023: 0, goods2024: 0, goods2025: 0, goods2026: 0 
-                });
-            }
-            let row = custMap.get(key);
-            row.goods2023 += item.goods2023;
-            row.goods2024 += item.goods2024;
-            row.goods2025 += item.goods2025;
-            row.goods2026 += item.goods2026;
-        });
-
-        let decliningCustomers = [];
-        custMap.forEach(row => {
-            let baseYearGoods = row[`goods${baseYear}`];
-            let previousYearsGoods = [];
-            if(baseYear > 2023 && availableYears.includes(2023)) previousYearsGoods.push(row.goods2023);
-            if(baseYear > 2024 && availableYears.includes(2024)) previousYearsGoods.push(row.goods2024);
-            if(baseYear > 2025 && availableYears.includes(2025)) previousYearsGoods.push(row.goods2025);
-            
-            if(previousYearsGoods.length === 0) return;
-            let maxPrevGoods = Math.max(...previousYearsGoods);
-            
-            if(maxPrevGoods > 0 && baseYearGoods < maxPrevGoods) {
-                let dropAmount = maxPrevGoods - baseYearGoods;
-                let dropPerc = ((dropAmount / maxPrevGoods) * 100).toFixed(1);
-                decliningCustomers.push({ ...row, baseYearGoods, maxPrevGoods, dropAmount, dropPerc });
-            }
-        });
-
+   // ... (داخل دالة updateDeclineAnalysis)
+        
+        // 4. الترتيب حسب الأسوأ ثم اختيار أعلى 50 حالة فقط
         decliningCustomers.sort((a, b) => b.dropAmount - a.dropAmount);
+        let top50Declines = decliningCustomers.slice(0, 50); // 🟢 قصرنا النتائج على 50 فقط
 
-        let totalDeclines = decliningCustomers.length;
-        let avgDropPerc = totalDeclines ? (decliningCustomers.reduce((sum, item) => sum + parseFloat(item.dropPerc), 0) / totalDeclines).toFixed(1) : '0.0';
-        let topCustomer = decliningCustomers[0] ? decliningCustomers[0].custName : '-';
-
-        document.getElementById('decline-total-count').innerText = totalDeclines.toLocaleString();
-        document.getElementById('decline-average-drop').innerText = `${avgDropPerc}%`;
-        document.getElementById('decline-top-customer').innerText = topCustomer;
-
+        // 5. رسم الجدول
         let tbody = document.getElementById("decline-table-body");
         tbody.innerHTML = '';
-        if(decliningCustomers.length === 0) {
-            document.getElementById('no-decline-msg').style.display = 'block';
-            document.getElementById('decline-table').style.display = 'none';
+        
+        // تحديث رسالة التنبيه
+        let noticeArea = document.getElementById("decline-summary-notice");
+        noticeArea.innerHTML = `<span style="color:var(--primary); font-weight:800;">تنبيه:</span> تم عرض أعلى 50 حالة تراجع فقط لسهولة التحليل.`;
+
+        if(top50Declines.length === 0) {
+            // ... (بقية منطق الإخفاء)
         } else {
-            document.getElementById('no-decline-msg').style.display = 'none';
-            document.getElementById('decline-table').style.display = 'table';
-            decliningCustomers.forEach(r => {
-                let tr = `
-                    <tr class="decline-row">
-                        <td style="font-weight:800; color:var(--text-main); font-size:1rem;">${r.custName}</td>
-                        <td style="font-weight:700; color:var(--text-muted);">${r.description}</td>
-                        <td class="${baseYear === 2023 ? 'base-year-highlight' : ''}">${r.goods2023.toLocaleString()}</td>
-                        <td class="${baseYear === 2024 ? 'base-year-highlight' : ''}">${r.goods2024.toLocaleString()}</td>
-                        <td class="${baseYear === 2025 ? 'base-year-highlight' : ''}">${r.goods2025.toLocaleString()}</td>
-                        <td class="${baseYear === 2026 ? 'base-year-highlight' : ''}">${r.goods2026.toLocaleString()}</td>
-                        <td style="font-weight:800; color:var(--text-muted); background: rgba(148,163,184,0.05);">${r.maxPrevGoods.toLocaleString()}</td>
-                        <td style="font-weight:800; color:var(--text-main);">${r.baseYearGoods.toLocaleString()}</td>
-                        <td><span class="decline-val">${r.dropAmount.toLocaleString()}</span></td>
-                        <td><span class="decline-val">${r.dropPerc}%</span></td>
-                    </tr>
-                `;
-                tbody.insertAdjacentHTML('beforeend', tr);
+            // ... 
+            top50Declines.forEach(r => { // استخدمنا top50Declines بدلاً من decliningCustomers
+                // ... (بقية كود الـ tr)
             });
         }
-    }
 
     // Presets Action
     document.getElementById("apply-preset").onclick = () => {
@@ -1452,23 +1392,19 @@ thead.innerHTML = '<tr><th>العميل</th><th>الصنف</th><th>كمية 23</
             
             setTimeout(() => {
                 // إعادة هيكلة البيانات المصفاة لتظهر بأعمدة عربية منسقة عند التصدير
-                const excelRows = filteredData.map(r => ({
-                    "العميل": r.custName,
-                    "الصنف": r.description,
-                  
-                    "كمية 2023": r.goods2023,
-                    "بونص 2023": r.bonus2023,
-                    "كمية 2024": r.goods2024,
-                    "بونص 2024": r.bonus2024,
-                    "كمية 2025": r.goods2025,
-                    "بونص 2025": r.bonus2025,
-                    "كمية 2026": r.goods2026,
-                    "بونص 2026": r.bonus2026,
-                    "إجمالي الكمية": r.totalGoods,
-                    "إجمالي البونص": r.totalBonus,
-                    "نسبة البونص %": r.totalGoods > 0 ? ((r.totalBonus / r.totalGoods) * 100).toFixed(2) + '%' : '0%'
-                }));
-                
+               const excelRows = filteredData.map(r => ({
+    "العميل": r.custName,
+    "الصنف": r.description,
+    "كمية 2023": r.goods2023,
+    "بونص 2023": r.bonus2023,
+    "كمية 2024": r.goods2024,
+    "بونص 2024": r.bonus2024,
+    "كمية 2025": r.goods2025,
+    "بونص 2025": r.bonus2025,
+    "كمية 2026": r.goods2026,
+    "بونص 2026": r.bonus2026,
+    "نسبة البونص %": r.totalGoods > 0 ? ((r.totalBonus / r.totalGoods) * 100).toFixed(2) + '%' : '0%'
+}));
                 const worksheet = XLSX.utils.json_to_sheet(excelRows);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "التقرير المصفى");
