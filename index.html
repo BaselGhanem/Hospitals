@@ -1316,6 +1316,7 @@
     }
 
     // 🧠 دالة تحليل العملاء المتراجعين ديناميكياً
+  // 🧠 دالة تحليل العملاء المتراجعين ديناميكياً
     function updateDeclineAnalysis() {
         let availableYears = activeFilters.years.length ? activeFilters.years : allYears;
         let baseYear = Math.max(...availableYears);
@@ -1323,16 +1324,17 @@
 
         let custMap = new Map();
         filteredData.forEach(item => {
-            let cust = item.custName;
-            if(!custMap.has(cust)) {
-                custMap.set(cust, { custName: cust, description: item.description || '-', goods2023: 0, goods2024: 0, goods2025: 0, goods2026: 0, maxDescVolume: 0 });
+            // 🟢 التعديل الجوهري: استخدام مفتاح مركب (العميل + الصنف) لعدم دمج الأصناف المختلفة
+            let key = `${item.custName}|||${item.description}`;
+            
+            if(!custMap.has(key)) {
+                custMap.set(key, { 
+                    custName: item.custName, 
+                    description: item.description || '-', 
+                    goods2023: 0, goods2024: 0, goods2025: 0, goods2026: 0 
+                });
             }
-            let row = custMap.get(cust);
-            let itemVolume = item.goods2023 + item.goods2024 + item.goods2025 + item.goods2026;
-            if(itemVolume > row.maxDescVolume) {
-                row.description = item.description || '-';
-                row.maxDescVolume = itemVolume;
-            }
+            let row = custMap.get(key);
             row.goods2023 += item.goods2023;
             row.goods2024 += item.goods2024;
             row.goods2025 += item.goods2025;
@@ -1346,8 +1348,10 @@
             if(baseYear > 2023 && availableYears.includes(2023)) previousYearsGoods.push(row.goods2023);
             if(baseYear > 2024 && availableYears.includes(2024)) previousYearsGoods.push(row.goods2024);
             if(baseYear > 2025 && availableYears.includes(2025)) previousYearsGoods.push(row.goods2025);
+            
             if(previousYearsGoods.length === 0) return;
             let maxPrevGoods = Math.max(...previousYearsGoods);
+            
             if(maxPrevGoods > 0 && baseYearGoods < maxPrevGoods) {
                 let dropAmount = maxPrevGoods - baseYearGoods;
                 let dropPerc = ((dropAmount / maxPrevGoods) * 100).toFixed(1);
